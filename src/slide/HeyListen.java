@@ -8,28 +8,25 @@ package slide;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
-import java.awt.Image;
 import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import javax.imageio.ImageIO;
-import javax.swing.ImageIcon;
-import javax.swing.JFileChooser;
 import javax.swing.JFrame;
+import javax.swing.JLayeredPane;
+import javax.swing.JPanel;
 
 /**
  *
  * @author stark
  */
 public class HeyListen {
-    JFrame frame;
+    JLayeredPane frame;
     Slide sl;
     Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
     
-    public HeyListen(Slide sl,JFrame frame){
+    public HeyListen(Slide sl,JLayeredPane frame){
         this.sl = sl;
         this.frame=frame;
     }
@@ -44,21 +41,21 @@ public class HeyListen {
               + "LEFT: skip -1<br>"
               + "UP: skip+10<br>"
               + "RIGHT: skip +1<br>"
-              + "T: timer<br>"
+              + "T: timer "+sl.seconds+"<br>"
               + "L: load<br>"
               + "F3: save prefs<br>"
               + "F2: load prefs<br>"
               + "H: toggle debug<br>"
+              + "C: sort pic<br>"
               + "ESC: quit</html>";
         }
         return "";
     }
     
-    public KeyListener getShortcutKeyListener() {
-        KeyListener listener = new KeyListener() {
-
-            @Override
-            public void keyReleased(KeyEvent evt) {
+    public boolean dispatch(KeyEvent evt) {
+        if(!enableke || evt.getID() != KeyEvent.KEY_RELEASED){
+            return false;
+        }
                 switch (evt.getKeyCode()) {
                     case KeyEvent.VK_R:
                         sl.recur();
@@ -88,6 +85,9 @@ public class HeyListen {
                         debug=!debug;
                         sl.setDebug();
                         break;
+                    case KeyEvent.VK_C:
+                        sl.sortPic();
+                        break;
                     case KeyEvent.VK_F3:
                         System.out.println("F3");
                         sl.saveProps();
@@ -102,19 +102,7 @@ public class HeyListen {
                     default:
                         break;
                 }
-            }
-
-            @Override
-            public void keyTyped(KeyEvent e) {
-                // Do nothing
-            }
-
-            @Override
-            public void keyPressed(KeyEvent e) {
-                // Do nothing
-            }
-        };
-        return listener;
+        return true;
     }
     
     public void exiton(Container dialog) {
@@ -144,6 +132,11 @@ public class HeyListen {
             }
         }
         return compList;
+    }
+
+    boolean enableke=true;
+    void enableKeyEvents(boolean b) {
+        enableke=b;
     }
 
     

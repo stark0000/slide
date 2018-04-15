@@ -5,12 +5,19 @@
  */
 package slide;
 
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Image;
+import java.awt.KeyEventDispatcher;
+import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.InputStream;
@@ -36,7 +43,12 @@ import javax.swing.JOptionPane;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Properties;
+import javax.swing.JLayeredPane;
+import javax.swing.JPanel;
+import javax.swing.border.EmptyBorder;
 
 /**
  *
@@ -51,60 +63,91 @@ public class Slide {
         Slide slide = new Slide();
     }
 
+    static final String PROPFILE = "slide.ini";
     JButton btnExit;
+    JLayeredPane panel;
     JFrame frame;
     final JFileChooser fc = new JFileChooser();
     HeyListen hl;
     Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
     JLabel img;
     JLabel debug;
+    int recurse = 0;
+    String defaultFolder = "C:\\Users\\stark\\Downloads\\tor\\vtffsd";
+    List<File> pic;
+    int npic = 0;
+    final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+    boolean running = false;
+    Future<?> future;
+    Long seconds = 2L;
+    File currentPic;
+    List<PlAdd> propPls=new ArrayList<>();
+    List<File> playlistFiles;
 
     Slide() {
         getProps();
-        frame = new JFrame();//creating instance of JFrame  
-        hl = new HeyListen(this, frame);
-        frame.setName("main frame");
+        frame = new JFrame();
+        frame.setName("slider");
+        panel = new JLayeredPane();
+        panel.setPreferredSize(screenSize);
+        hl = new HeyListen(this, panel);
+        panel.setName("main frame");
 
-        JButton b = new JButton("click");//creating instance of JButton 
-        b.setName("why");
-        b.setBounds(0, 0, 0, 0);//x axis, y axis, width, height  
-        b.addActionListener((java.awt.event.ActionEvent e) -> {
-            setImg();
-        });
-        frame.add(b);//adding button in JFrame  
-
+//        JButton b = new JButton("click");//creating instance of JButton 
+//        b.setName("why");
+//        b.setBounds(0, 0, 0, 0);//x axis, y axis, width, height  
+//        b.addActionListener((java.awt.event.ActionEvent e) -> {
+//            setImg();
+//        });
+//        panel.add(b);//adding button in JFrame  
         debug = new JLabel();
         debug.setText(hl.buildLabel(""));
         debug.setVerticalAlignment(JLabel.TOP);
         debug.setForeground(Color.DARK_GRAY);
         debug.setBounds(0, 0, screenSize.width, screenSize.height);
-        frame.add(debug);
+        panel.add(debug, new Integer(100));
 
         img = new JLabel();
         img.setBounds(0, 0, screenSize.width, screenSize.height);
-        frame.add(img);
+        panel.add(img, new Integer(50));
 
-        setShortcutListener(frame);
+        panel.setOpaque(true);
+        panel.setVisible(true);
+
+//        setShortcutListener(frame);
         setAllBlack(frame);
         frame.setSize(screenSize.width, screenSize.height);//400 width and 500 height  
-        frame.setLayout(null);//using no layout managers  
-        frame.setUndecorated(true);
         frame.setBackground(Color.BLACK);
 
-        frame.pack();
+//        frame.setLayout(null);//using no layout managers  
+        frame.setUndecorated(true);
         frame.setExtendedState(Frame.MAXIMIZED_BOTH);
-        frame.setVisible(true);//making the frame visible  
+//        frame.add(panel);
+        frame.setContentPane(panel);
+        frame.setVisible(true);
+//        frame.pack();
+        KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+        manager.addKeyEventDispatcher(new MyDispatcher());
+//                        setImg();
 
 //        int returnVal = fc.showOpenDialog(frame);
     }
 
-    private void setShortcutListener(JFrame frame) {
-        List<Component> comp_list = hl.getAllComponents(frame);
-        comp_list.forEach((component) -> {
-            component.addKeyListener(hl.getShortcutKeyListener());
-        });
+    private class MyDispatcher implements KeyEventDispatcher {
+
+        @Override
+        public boolean dispatchKeyEvent(KeyEvent e) {
+            return hl.dispatch(e);
+        }
     }
 
+//    private void setShortcutListener(JFrame frame) {
+//        List<Component> comp_list = hl.getAllComponents(frame);
+//        comp_list.forEach(System.out::println);
+//        comp_list.forEach((component) -> {
+//            component.addKeyListener(hl.getShortcutKeyListener());
+//        });
+//    }
     private void setAllBlack(JFrame frame) {
         List<Component> comp_list = hl.getAllComponents(frame);
         comp_list.forEach((component) -> {
@@ -112,11 +155,8 @@ public class Slide {
         });
     }
 
-    int recurse = 0;
-
-    String defaultFolder = "C:\\Users\\stark\\Downloads\\tor\\vtffsd";
-
     public void setImg() {
+        hl.enableKeyEvents(false);
         try {
             JFileChooser jfc = new JFileChooser(defaultFolder);
             jfc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
@@ -131,6 +171,7 @@ public class Slide {
             System.err.println(e);
             e.printStackTrace();
         }
+        hl.enableKeyEvents(true);
     }
 
     public List<File> listFilesForFolder(final File folder, int sub) {
@@ -153,8 +194,6 @@ public class Slide {
         }
         return lf;
     }
-    List<File> pic;
-    int npic = 0;
 
     synchronized void setPics(List<File> pic) {
         this.pic = pic;
@@ -163,7 +202,13 @@ public class Slide {
     synchronized File getPic() {
         int p = npic();
         System.out.println(p);
-        return pic.get(p);
+        currentPic = pic.get(p);
+        if(popPlsOpen){
+            for (PlAdd propPl : propPls) {
+                propPl.update();
+            }
+        }
+        return currentPic;
     }
 
     synchronized private int npic() {
@@ -182,12 +227,6 @@ public class Slide {
     synchronized private int getnpic() {
         return npic;
     }
-
-    final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
-
-    boolean running = false;
-    Future<?> future;
-    Long seconds = 2L;
 
     public void setTime(Long l) {
         seconds = l;
@@ -262,7 +301,7 @@ public class Slide {
         if (wasrunning) {
             sliderun();
         }
-        String name = JOptionPane.showInputDialog(frame,
+        String name = JOptionPane.showInputDialog(panel,
                 "timer", null);
         Long l;
         try {
@@ -296,8 +335,9 @@ public class Slide {
     }
 
     void recur() {
-        String name = JOptionPane.showInputDialog(frame,
-                "recurse level (-1 for infinity)", null);
+        hl.enableKeyEvents(false);
+        String name = JOptionPane.showInputDialog(panel,
+                "recurse level (-1 for infinity)", recurse);
         Integer l;
         try {
             l = Integer.parseInt(name);
@@ -305,8 +345,8 @@ public class Slide {
             l = 0;
         }
         recurse = l;
+        hl.enableKeyEvents(true);
     }
-    static final String PROPFILE = "slide.ini";
 
     void saveProps() {
         Properties prop = new Properties();
@@ -318,6 +358,7 @@ public class Slide {
 
             // set the properties value
             prop.setProperty("defaultfolder", defaultFolder);
+            prop.setProperty("timer", seconds.toString());
 
             // save properties to project root folder
             prop.store(output, null);
@@ -348,8 +389,12 @@ public class Slide {
             prop.load(input);
 
             // get the property value and print it out
-            System.out.println(prop.getProperty("defaultfolder"));
+            System.out.println("default folder: " + prop.getProperty("defaultfolder"));
             defaultFolder = prop.getProperty("defaultfolder");
+            System.out.println("timer: " + prop.getProperty("timer"));
+            seconds = prop.getProperty("timer") == null
+                    ? 3L
+                    : Long.parseLong(prop.getProperty("timer"));
         } catch (IOException ex) {
             ex.printStackTrace();
         } finally {
@@ -365,6 +410,236 @@ public class Slide {
 
     public void setDebug() {
         debug.setText(hl.buildLabel(""));
+    }
+
+
+    void getPlaylists() {
+        playlistFiles=new ArrayList<>();
+        try {
+            Files.createDirectory(Paths.get("playlist"));
+        } catch (IOException ex) {
+        }
+        File playFolder = new File("playlist");
+        List<File> lf = new ArrayList<>();
+        for (final File fileEntry : playFolder.listFiles()) {
+            if (fileEntry.isDirectory()) {
+            } else {
+                System.out.println(fileEntry.getAbsolutePath());
+                if (playlistFiles == null) {
+                    playlistFiles = new ArrayList<>();
+                }
+                playlistFiles.add(fileEntry);
+            }
+        }
+    }
+
+    List<File> plContains(String pic) {
+        ArrayList<File> af = new ArrayList<>();
+        for (File playlistFile : playlistFiles) {
+            if (plContain(playlistFile, pic)) {
+                af.add(playlistFile);
+            }
+        }
+        return af;
+    }
+
+    boolean plContain(File pl, String pic) {
+        boolean b = false;
+        Properties prop = new Properties();
+        InputStream input = null;
+        try {
+            input = new FileInputStream(pl);
+            prop.load(input);
+            if (prop.getProperty(pic) != null) {
+                b = true;
+            }
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        } finally {
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return b;
+    }
+
+    void plAddPic(File propFile, File pic) {
+        Properties prop = new Properties();
+        OutputStream output = null;
+        try {
+            output = new FileOutputStream(propFile);
+            prop.setProperty(pic.getAbsolutePath(), "OK");
+            prop.store(output, null);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        } finally {
+            if (output != null) {
+                try {
+                    output.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    void plDelPic(File propFile, File pic) {
+        Properties prop = new Properties();
+        OutputStream output = null;
+        try {
+            output = new FileOutputStream(propFile);
+            prop.remove(pic.getAbsolutePath());
+            prop.store(output, null);
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        } finally {
+            if (output != null) {
+                try {
+                    output.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    private void updatePl(PlAdd plo) {
+        if (currentPic == null) {
+            System.out.println("null pic");
+            return;
+        }
+        if (plo.contain) {
+            plDelPic(plo.pl, currentPic);
+        } else {
+            plAddPic(plo.pl, currentPic);
+        }
+    }
+
+    void sortPic() {
+        boolean wasrunning = running;
+        if (wasrunning) {
+            sliderun();
+        }
+        System.out.println("sort pic");
+        if (currentPic != null) {
+            System.out.println(currentPic.getAbsolutePath());
+        }
+        popPlsAdd();
+    }
+    public boolean popPlsOpen = false;
+
+    private void popPlsAdd() {
+        System.out.println("pop pl:" +popPlsOpen);
+        propPls.forEach(System.out::println);
+        if(popPlsOpen){
+            propPls.forEach(panel::remove);
+            propPls = new ArrayList<>();
+            popPlsOpen=false;
+            panel.revalidate();
+            panel.repaint();
+            return;
+        }
+            popPlsOpen=true;
+        getPlaylists();
+        int lheght = 50;
+        int lwidth = 500;
+        int step = 1;
+        int i = 1;
+        System.out.println("playlist files count: " + playlistFiles.size());
+        for (File playlistFile : playlistFiles) {
+            System.out.println("playlist name: " + playlistFile.getAbsolutePath());
+            boolean contains = false;
+            if (currentPic != null) {
+                contains = plContain(playlistFile, currentPic.getAbsolutePath());
+            }
+
+            PlAdd plAdd = new PlAdd(playlistFile, contains, this);
+            plAdd.set();
+            plAdd.setBounds(5, screenSize.height - (i * lheght), lwidth, lheght - step);
+            propPls.add(plAdd);
+            panel.add(plAdd, new Integer(150));
+
+            panel.revalidate();
+            panel.repaint();
+//            frame.validate();
+//            frame.repaint();
+//            frame.pack();
+            System.out.println("pladd:" + plAdd.getParent());
+            i++;
+        }
+    }
+    static final Color plExited = Color.DARK_GRAY;
+    static final Color plHover = new Color(200, 200, 200);
+    static final Color plClicked = Color.MAGENTA;
+    static final Color plContains = Color.GREEN;
+    static final Color plRemove = Color.RED;
+    static final Color plTxt = Color.WHITE;
+
+    class PlAdd extends JLabel {
+
+        public File pl;
+        public boolean contain;
+        public PlAdd plo;
+        public Slide sl;
+
+        public PlAdd(File pl, boolean contains, Slide sl) {
+            super();
+            this.pl = pl;
+            this.contain = contains;
+            this.sl = sl;
+            this.plo = this;
+        }
+
+        public void update(){
+            if (currentPic != null) {
+                contain = plContain(pl, currentPic.getAbsolutePath());
+            } else {
+                contain=false;
+            }
+            this.setForeground(contain ? plContains : plTxt);
+        }
+        public void set() {
+            this.setText(pl.getAbsolutePath());
+            this.setName(pl.getName());
+            this.setBackground(plExited);
+            this.setForeground(contain ? plContains : plTxt);
+//            this.setVerticalAlignment(JLabel.TOP);
+            this.setBorder(new EmptyBorder(0, 10, 0, 0));
+            this.setOpaque(true);
+            this.setVisible(true);
+            this.addMouseListener(new MouseListener() {
+
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    plo.setBackground(new Color(200, 200, 200));
+                }
+
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    plo.setBackground(plExited);
+                }
+
+                @Override
+                public void mouseClicked(MouseEvent e) {
+                    sl.updatePl(plo);
+                }
+
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    plo.setBackground(plClicked);
+                }
+
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    plo.setBackground(plExited);
+                }
+            });
+        }
+
     }
 
 }
