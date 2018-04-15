@@ -34,6 +34,26 @@ public class HeyListen {
         this.frame=frame;
     }
     
+    boolean debug=true;
+    String buildLabel(String plus) {
+        if(debug){
+      return "<html>"
+              + plus+"<br><br>"
+              + "R: recurse<br>"
+              + "DOWN: skip -10<br>"
+              + "LEFT: skip -1<br>"
+              + "UP: skip+10<br>"
+              + "RIGHT: skip +1<br>"
+              + "T: timer<br>"
+              + "L: load<br>"
+              + "F3: save prefs<br>"
+              + "F2: load prefs<br>"
+              + "H: toggle debug<br>"
+              + "ESC: quit</html>";
+        }
+        return "";
+    }
+    
     public KeyListener getShortcutKeyListener() {
         KeyListener listener = new KeyListener() {
 
@@ -47,7 +67,7 @@ public class HeyListen {
                         sl.skip(-10);
                         break;
                     case KeyEvent.VK_LEFT:
-                        sl.skip(-1);
+                        sl.skip(-2);
                         break;
                     case KeyEvent.VK_UP:
                         sl.skip(10);
@@ -63,6 +83,10 @@ public class HeyListen {
                         break;
                     case KeyEvent.VK_L:
                         sl.setImg();
+                        break;
+                    case KeyEvent.VK_H:
+                        debug=!debug;
+                        sl.setDebug();
                         break;
                     case KeyEvent.VK_F3:
                         System.out.println("F3");
@@ -121,6 +145,7 @@ public class HeyListen {
         }
         return compList;
     }
+
     
 
 }

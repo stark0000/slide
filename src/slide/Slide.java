@@ -74,7 +74,7 @@ public class Slide {
         frame.add(b);//adding button in JFrame  
 
         debug = new JLabel();
-        debug.setText("null");
+        debug.setText(hl.buildLabel(""));
         debug.setVerticalAlignment(JLabel.TOP);
         debug.setForeground(Color.DARK_GRAY);
         debug.setBounds(0, 0, screenSize.width, screenSize.height);
@@ -114,8 +114,8 @@ public class Slide {
 
     int recurse = 0;
 
-    String defaultFolder="C:\\Users\\stark\\Downloads\\tor\\vtffsd";
-    
+    String defaultFolder = "C:\\Users\\stark\\Downloads\\tor\\vtffsd";
+
     public void setImg() {
         try {
             JFileChooser jfc = new JFileChooser(defaultFolder);
@@ -123,7 +123,7 @@ public class Slide {
             jfc.showOpenDialog(null);
             File f = jfc.getSelectedFile();
             System.out.println(f.getAbsoluteFile());
-            defaultFolder=f.getAbsolutePath();
+            defaultFolder = f.getAbsolutePath();
             saveProps();
             setPics(listFilesForFolder(f, recurse));
             sliderun();
@@ -213,7 +213,7 @@ public class Slide {
         try {
             bi = ImageIO.read(file);
             System.out.println(file.getName() + " " + bi.getWidth() + "x" + bi.getHeight());
-            debug.setText(file.getName() + " " + bi.getWidth() + "x" + bi.getHeight());
+            debug.setText(hl.buildLabel(file.getName() + " " + bi.getWidth() + "x" + bi.getHeight()));
             Dimension d = setD(bi.getWidth(), bi.getHeight());
             img.setIcon(
                     new ImageIcon(new javax.swing.ImageIcon(bi).getImage()
@@ -223,7 +223,7 @@ public class Slide {
         } catch (IOException ex) {
             Logger.getLogger(Slide.class
                     .getName()).log(Level.SEVERE, null, ex);
-            debug.setText("ERROR " + file.getName());
+            debug.setText(hl.buildLabel("ERROR " + file.getName()));
         }
     }
 
@@ -304,62 +304,67 @@ public class Slide {
         } catch (NumberFormatException e) {
             l = 0;
         }
-        recurse=l;
+        recurse = l;
     }
     static final String PROPFILE = "slide.ini";
-    
-    void saveProps(){
+
+    void saveProps() {
         Properties prop = new Properties();
-	OutputStream output = null;
+        OutputStream output = null;
 
-	try {
+        try {
 
-		output = new FileOutputStream(PROPFILE);
+            output = new FileOutputStream(PROPFILE);
 
-		// set the properties value
-		prop.setProperty("defaultfolder", defaultFolder);
+            // set the properties value
+            prop.setProperty("defaultfolder", defaultFolder);
 
-		// save properties to project root folder
-		prop.store(output, null);
+            // save properties to project root folder
+            prop.store(output, null);
 
-	} catch (IOException io) {
-		io.printStackTrace();
-	} finally {
-		if (output != null) {
-			try {
-				output.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+        } catch (IOException io) {
+            io.printStackTrace();
+        } finally {
+            if (output != null) {
+                try {
+                    output.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
 
-	}
+        }
     }
-    void getProps(){
+
+    void getProps() {
         Properties prop = new Properties();
-	InputStream input = null;
+        InputStream input = null;
 
-	try {
+        try {
 
-		input = new FileInputStream(PROPFILE);
+            input = new FileInputStream(PROPFILE);
 
-		// load a properties file
-		prop.load(input);
+            // load a properties file
+            prop.load(input);
 
-		// get the property value and print it out
-		System.out.println(prop.getProperty("defaultfolder"));
-                defaultFolder=prop.getProperty("defaultfolder");
-	} catch (IOException ex) {
-		ex.printStackTrace();
-	} finally {
-		if (input != null) {
-			try {
-				input.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
+            // get the property value and print it out
+            System.out.println(prop.getProperty("defaultfolder"));
+            defaultFolder = prop.getProperty("defaultfolder");
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        } finally {
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public void setDebug() {
+        debug.setText(hl.buildLabel(""));
     }
 
 }
