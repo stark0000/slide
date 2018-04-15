@@ -74,14 +74,14 @@ public class Slide {
     JLabel debug;
     int recurse = 0;
     String defaultFolder = "C:\\Users\\stark\\Downloads\\tor\\vtffsd";
-    List<File> pic;
+    List<File> pic = new ArrayList<>();
     int npic = 0;
     final ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
     boolean running = false;
     Future<?> future;
     Long seconds = 2L;
     File currentPic;
-    List<PlAdd> propPls=new ArrayList<>();
+    List<PlAdd> propPls = new ArrayList<>();
     List<File> playlistFiles;
 
     Slide() {
@@ -133,6 +133,10 @@ public class Slide {
 //        int returnVal = fc.showOpenDialog(frame);
     }
 
+    private void resetNpic() {
+        npic = -1;
+    }
+
     private class MyDispatcher implements KeyEventDispatcher {
 
         @Override
@@ -155,8 +159,28 @@ public class Slide {
         });
     }
 
+    void setPImg() {
+        hl.enableKeyEvents(false);
+        resetNpic();
+        try {
+            JFileChooser jfc = new JFileChooser("playlist");
+            jfc.setFileSelectionMode(JFileChooser.FILES_ONLY);
+            jfc.showOpenDialog(null);
+            File f = jfc.getSelectedFile();
+            System.out.println(f.getAbsoluteFile());
+
+            setPics(listFilesForProperties(f));
+            sliderun();
+        } catch (Exception e) {
+            System.err.println(e);
+            e.printStackTrace();
+        }
+        hl.enableKeyEvents(true);
+    }
+
     public void setImg() {
         hl.enableKeyEvents(false);
+        resetNpic();
         try {
             JFileChooser jfc = new JFileChooser(defaultFolder);
             jfc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
@@ -172,6 +196,30 @@ public class Slide {
             e.printStackTrace();
         }
         hl.enableKeyEvents(true);
+    }
+
+    private List<File> listFilesForProperties(File f) {
+        List<File> lf = new ArrayList<>();
+        Properties prop = new Properties();
+        InputStream input = null;
+
+        try {
+
+            input = new FileInputStream(f);
+            prop.load(input);
+            prop.keySet().forEach(k -> lf.add(new File((String) k)));
+        } catch (IOException ex) {
+            ex.printStackTrace();
+        } finally {
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return lf;
     }
 
     public List<File> listFilesForFolder(final File folder, int sub) {
@@ -203,25 +251,57 @@ public class Slide {
         int p = npic();
         System.out.println(p);
         currentPic = pic.get(p);
-        if(popPlsOpen){
+        popPropUpdate();
+        return currentPic;
+    }
+
+    void popPropUpdate() {
+        if (popPlsOpen) {
             for (PlAdd propPl : propPls) {
                 propPl.update();
             }
         }
-        return currentPic;
     }
 
     synchronized private int npic() {
         System.out.println("size:" + pic.size());
-        if (npic < 0) {
-            npic = 0;
-        }
-        if (npic >= pic.size()) {
-            npic = 0;
-        }
-        int n = npic;
+        System.out.println("==========1 " + npic);
         npic++;
-        return n;
+        while (true) {
+            if (npic < 0) {
+                npic = pic.size() - 1 + npic;
+            } else if (npic >= pic.size()) {
+                npic = npic - pic.size();
+            } else {
+                break;
+            }
+        }
+        System.out.println("==========2 " + npic);
+        return npic;
+    }
+
+    void skip(int i) {
+        boolean wasrunning = running;
+        if (wasrunning) {
+            sliderun();
+        }
+        System.out.println("======s1 " + npic + " + " + i);
+        int s = npic + i;
+        while (true) {
+            if (s < -1) {
+                npic = pic.size() + s;
+            } else if (s >= pic.size()) {
+                npic = s - pic.size();
+            } else {
+                npic = s;
+                System.out.println("======s2 " + npic + " (" + i+")");
+                if (wasrunning) {
+                    sliderun();
+                }
+                break;
+            }
+            s = npic;
+        }
     }
 
     synchronized private int getnpic() {
@@ -315,25 +395,6 @@ public class Slide {
         }
     }
 
-    void skip(int i) {
-        boolean wasrunning = running;
-        if (wasrunning) {
-            sliderun();
-        }
-        int s = npic + i;
-        if (s < 0) {
-            npic = pic.size() - 1 + s;
-        } else if (s >= pic.size()) {
-            npic = s - pic.size();
-        } else {
-            npic = s;
-        }
-
-        if (wasrunning) {
-            sliderun();
-        }
-    }
-
     void recur() {
         hl.enableKeyEvents(false);
         String name = JOptionPane.showInputDialog(panel,
@@ -412,15 +473,13 @@ public class Slide {
         debug.setText(hl.buildLabel(""));
     }
 
-
     void getPlaylists() {
-        playlistFiles=new ArrayList<>();
+        playlistFiles = new ArrayList<>();
         try {
             Files.createDirectory(Paths.get("playlist"));
         } catch (IOException ex) {
         }
         File playFolder = new File("playlist");
-        List<File> lf = new ArrayList<>();
         for (final File fileEntry : playFolder.listFiles()) {
             if (fileEntry.isDirectory()) {
             } else {
@@ -470,7 +529,10 @@ public class Slide {
     void plAddPic(File propFile, File pic) {
         Properties prop = new Properties();
         OutputStream output = null;
+        InputStream input = null;
         try {
+            input = new FileInputStream(propFile);
+            prop.load(input);
             output = new FileOutputStream(propFile);
             prop.setProperty(pic.getAbsolutePath(), "OK");
             prop.store(output, null);
@@ -490,7 +552,10 @@ public class Slide {
     void plDelPic(File propFile, File pic) {
         Properties prop = new Properties();
         OutputStream output = null;
+        InputStream input = null;
         try {
+            input = new FileInputStream(propFile);
+            prop.load(input);
             output = new FileOutputStream(propFile);
             prop.remove(pic.getAbsolutePath());
             prop.store(output, null);
@@ -517,13 +582,14 @@ public class Slide {
         } else {
             plAddPic(plo.pl, currentPic);
         }
+        popPropUpdate();
     }
 
     void sortPic() {
-        boolean wasrunning = running;
-        if (wasrunning) {
-            sliderun();
-        }
+//        boolean wasrunning = running;
+//        if (wasrunning) {
+//            sliderun();
+//        }
         System.out.println("sort pic");
         if (currentPic != null) {
             System.out.println(currentPic.getAbsolutePath());
@@ -533,17 +599,17 @@ public class Slide {
     public boolean popPlsOpen = false;
 
     private void popPlsAdd() {
-        System.out.println("pop pl:" +popPlsOpen);
+        System.out.println("pop pl:" + popPlsOpen);
         propPls.forEach(System.out::println);
-        if(popPlsOpen){
+        if (popPlsOpen) {
             propPls.forEach(panel::remove);
             propPls = new ArrayList<>();
-            popPlsOpen=false;
+            popPlsOpen = false;
             panel.revalidate();
             panel.repaint();
             return;
         }
-            popPlsOpen=true;
+        popPlsOpen = true;
         getPlaylists();
         int lheght = 50;
         int lwidth = 500;
@@ -594,14 +660,15 @@ public class Slide {
             this.plo = this;
         }
 
-        public void update(){
+        public void update() {
             if (currentPic != null) {
                 contain = plContain(pl, currentPic.getAbsolutePath());
             } else {
-                contain=false;
+                contain = false;
             }
             this.setForeground(contain ? plContains : plTxt);
         }
+
         public void set() {
             this.setText(pl.getAbsolutePath());
             this.setName(pl.getName());

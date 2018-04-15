@@ -41,13 +41,19 @@ public class HeyListen {
               + "LEFT: skip -1<br>"
               + "UP: skip+10<br>"
               + "RIGHT: skip +1<br>"
+              + "S: start/stop<br>"
               + "T: timer "+sl.seconds+"<br>"
               + "L: load<br>"
+              + "M: loadfromfrop<br>"
               + "F3: save prefs<br>"
               + "F2: load prefs<br>"
               + "H: toggle debug<br>"
               + "C: sort pic<br>"
-              + "ESC: quit</html>";
+              + "ESC: quit<br>"
+              + "current:"+sl.npic+"<br>"
+              + "imageset:"+sl.pic.size()+"<br>"
+              + "running: "+sl.running+"<br>"
+              + "</html>";
         }
         return "";
     }
@@ -70,7 +76,7 @@ public class HeyListen {
                         sl.skip(10);
                         break;
                     case KeyEvent.VK_RIGHT:
-                        sl.skip(1);
+                        sl.skip(0);
                         break;
                     case KeyEvent.VK_T:
                         sl.popTimer();
@@ -80,6 +86,9 @@ public class HeyListen {
                         break;
                     case KeyEvent.VK_L:
                         sl.setImg();
+                        break;
+                    case KeyEvent.VK_M:
+                        sl.setPImg();
                         break;
                     case KeyEvent.VK_H:
                         debug=!debug;
