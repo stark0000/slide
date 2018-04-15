@@ -3,3 +3,5 @@ build/
 nbproject/
 slide.ini
 test/
+manifest.mf
+build.xml
