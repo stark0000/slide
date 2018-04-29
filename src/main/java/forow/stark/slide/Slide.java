@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package slide;
+package forow.stark.slide;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -234,6 +234,9 @@ public class Slide {
                 String type = mimetype.split("/")[0];
                 if (type.equals("image")) {
                     System.out.println(fileEntry.getName() + ": added");
+                    lf.add(fileEntry);
+                } else if(fileEntry.getName().endsWith(".png")) {
+                    System.out.println(fileEntry.getName() + ": added manually");
                     lf.add(fileEntry);
                 } else {
                     System.out.println(fileEntry.getName() + ": not an image");

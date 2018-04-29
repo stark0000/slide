@@ -6,3 +6,4 @@ test/
 manifest.mf
 build.xml
 playlist/
+/dist/
