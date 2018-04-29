@@ -62,6 +62,7 @@ public class HeyListen {
         if(!enableke || evt.getID() != KeyEvent.KEY_RELEASED){
             return false;
         }
+        System.out.println("key event: "+evt.getKeyChar());
                 switch (evt.getKeyCode()) {
                     case KeyEvent.VK_R:
                         sl.recur();
@@ -81,7 +82,7 @@ public class HeyListen {
                     case KeyEvent.VK_T:
                         sl.popTimer();
                         break;
-                    case KeyEvent.VK_S:
+                    case KeyEvent.VK_SPACE:
                         sl.sliderun();
                         break;
                     case KeyEvent.VK_L:

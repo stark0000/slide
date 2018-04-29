@@ -5,7 +5,6 @@
  */
 package forow.stark.slide;
 
-import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -15,7 +14,6 @@ import java.awt.KeyEventDispatcher;
 import java.awt.KeyboardFocusManager;
 import java.awt.Toolkit;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
@@ -47,8 +45,14 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Properties;
 import javax.swing.JLayeredPane;
-import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import uk.co.caprica.vlcj.binding.LibVlc;
+import uk.co.caprica.vlcj.binding.internal.libvlc_marquee_position_e;
+import uk.co.caprica.vlcj.binding.internal.libvlc_media_t;
+import uk.co.caprica.vlcj.component.EmbeddedMediaPlayerComponent;
+import uk.co.caprica.vlcj.discovery.NativeDiscovery;
+import uk.co.caprica.vlcj.player.MediaPlayer;
+import uk.co.caprica.vlcj.player.MediaPlayerEventAdapter;
 
 /**
  *
@@ -56,11 +60,15 @@ import javax.swing.border.EmptyBorder;
  */
 public class Slide {
 
+    private final EmbeddedMediaPlayerComponent vlc;
+
     /**
      * @param args the command line arguments
      */
     public static void main(String[] args) {
+        new NativeDiscovery().discover();
         Slide slide = new Slide();
+
     }
 
     static final String PROPFILE = "slide.ini";
@@ -100,16 +108,23 @@ public class Slide {
 //            setImg();
 //        });
 //        panel.add(b);//adding button in JFrame  
+        img = new JLabel();
+        img.setBounds(0, 0, screenSize.width, screenSize.height);
+
+        panel.add(img, new Integer(50));
+
+        vlc = new EmbeddedMediaPlayerComponent();
+        vlc.getMediaPlayer().addMediaPlayerEventListener(getVlcEvent());
+                vlc.setBounds(0, 0, screenSize.width, screenSize.height);
+        vlc.setVisible(false);
+        panel.add(vlc, new Integer(60));
+
         debug = new JLabel();
         debug.setText(hl.buildLabel(""));
         debug.setVerticalAlignment(JLabel.TOP);
         debug.setForeground(Color.DARK_GRAY);
         debug.setBounds(0, 0, screenSize.width, screenSize.height);
         panel.add(debug, new Integer(100));
-
-        img = new JLabel();
-        img.setBounds(0, 0, screenSize.width, screenSize.height);
-        panel.add(img, new Integer(50));
 
         panel.setOpaque(true);
         panel.setVisible(true);
@@ -131,6 +146,54 @@ public class Slide {
 //                        setImg();
 
 //        int returnVal = fc.showOpenDialog(frame);
+    }
+
+    MediaPlayerEventAdapter getVlcEvent() {
+        return new MediaPlayerEventAdapter() {
+            @Override
+            public void opening(MediaPlayer mediaPlayer) {
+                System.out.println("opening mediaplayed");
+                super.opening(mediaPlayer);
+            }
+
+            @Override
+            public void stopped(MediaPlayer mediaPlayer) {
+                System.out.println("stopped mediaplayed");
+                super.stopped(mediaPlayer);
+//                        vlc.release();
+//                switchpic();
+            }
+
+            @Override
+            public void error(MediaPlayer mediaPlayer) {
+                System.out.println("error mediaplayed");
+                super.error(mediaPlayer);
+//                        vlc.release();
+//                switchpic();
+            }
+
+            @Override
+            public void finished(MediaPlayer mediaPlayer) {
+                super.finished(mediaPlayer);
+//                        vlc.release();
+                switchpic();
+            }
+
+            @Override
+            public void mediaChanged(MediaPlayer mediaPlayer, libvlc_media_t media, String mrl) {
+                System.out.println("media changed");
+                super.mediaChanged(mediaPlayer, media, mrl);
+            }
+
+            @Override
+            public void playing(MediaPlayer mediaPlayer) {
+                System.out.println("media playing");
+                super.playing(mediaPlayer); 
+            }
+            
+            
+
+        };
     }
 
     private void resetNpic() {
@@ -167,12 +230,12 @@ public class Slide {
             jfc.setFileSelectionMode(JFileChooser.FILES_ONLY);
             jfc.showOpenDialog(null);
             File f = jfc.getSelectedFile();
-            System.out.println(f.getAbsoluteFile());
+            System.out.println("pimgabsfile: " + f.getAbsoluteFile());
 
             setPics(listFilesForProperties(f));
             sliderun();
         } catch (Exception e) {
-            System.err.println(e);
+            System.out.println("ex: " + e);
             e.printStackTrace();
         }
         hl.enableKeyEvents(true);
@@ -186,13 +249,13 @@ public class Slide {
             jfc.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
             jfc.showOpenDialog(null);
             File f = jfc.getSelectedFile();
-            System.out.println(f.getAbsoluteFile());
+            System.out.println("setimg file: " + f.getAbsoluteFile());
             defaultFolder = f.getAbsolutePath();
             saveProps();
             setPics(listFilesForFolder(f, recurse));
             sliderun();
         } catch (Exception e) {
-            System.err.println(e);
+            System.out.println("ex: " + e);
             e.printStackTrace();
         }
         hl.enableKeyEvents(true);
@@ -230,20 +293,45 @@ public class Slide {
                     lf = Stream.concat(lf.stream(), listFilesForFolder(fileEntry, sub--).stream()).collect(Collectors.toList());
                 }
             } else {
-                String mimetype = new MimetypesFileTypeMap().getContentType(fileEntry);
-                String type = mimetype.split("/")[0];
-                if (type.equals("image")) {
-                    System.out.println(fileEntry.getName() + ": added");
-                    lf.add(fileEntry);
-                } else if(fileEntry.getName().endsWith(".png")) {
-                    System.out.println(fileEntry.getName() + ": added manually");
+                if (isPicOrVid(fileEntry)) {
                     lf.add(fileEntry);
                 } else {
                     System.out.println(fileEntry.getName() + ": not an image");
                 }
             }
         }
+        System.out.println("fileList: " + lf.size());
+        lf.forEach(f -> System.out.println(f.getName() + " p:" + isPic(f) + " v:" + isVid(f)));
         return lf;
+    }
+
+    private boolean isPicOrVid(File fileEntry) {
+        if (isPic(fileEntry)) {
+            return true;
+        }
+        return isVid(fileEntry);
+    }
+
+    private boolean isPic(File file) {
+        String mimetype = new MimetypesFileTypeMap().getContentType(file);
+        String type = mimetype.split("/")[0];
+        if (type.equals("image")) {
+            return true;
+        }
+        if (file.getName().endsWith(".jpg")) {
+            return true;
+        }
+        if (file.getName().endsWith(".jpeg")) {
+            return true;
+        }
+        return file.getName().endsWith(".png");
+    }
+
+    private boolean isVid(File file) {
+        if (file.getName().endsWith(".webm")) {
+            return true;
+        }
+        return file.getName().endsWith(".mp4");
     }
 
     synchronized void setPics(List<File> pic) {
@@ -252,7 +340,7 @@ public class Slide {
 
     synchronized File getPic() {
         int p = npic();
-        System.out.println(p);
+        System.out.println("getPic p: " + p);
         currentPic = pic.get(p);
         popPropUpdate();
         return currentPic;
@@ -267,8 +355,6 @@ public class Slide {
     }
 
     synchronized private int npic() {
-        System.out.println("size:" + pic.size());
-        System.out.println("==========1 " + npic);
         npic++;
         while (true) {
             if (npic < 0) {
@@ -279,7 +365,6 @@ public class Slide {
                 break;
             }
         }
-        System.out.println("==========2 " + npic);
         return npic;
     }
 
@@ -297,7 +382,7 @@ public class Slide {
                 npic = s - pic.size();
             } else {
                 npic = s;
-                System.out.println("======s2 " + npic + " (" + i+")");
+                System.out.println("======s2 " + npic + " (" + i + ")");
                 if (wasrunning) {
                     sliderun();
                 }
@@ -316,40 +401,88 @@ public class Slide {
     }
 
     public void sliderun() {
-        if (running) {
-            System.out.println("pause");
-            future.cancel(true);
-            running = false;
+        if (vlc.isVisible()) {
+            if (running) {
+                vlc.getMediaPlayer().pause();
+            } else {
+                vlc.getMediaPlayer().start();
+            }
         } else {
-            System.out.println("start");
-            future = executorService.scheduleAtFixedRate(() -> {
+            if (running) {
+                System.out.println("pause");
+                future.cancel(true);
+                running = false;
+            } else {
+                System.out.println("start");
+                running = true;
+                timeIt();
+            }
+        }
+    }
+
+    private void timeIt() {
+        System.out.println("timeit");
+        if (running) {
+            future = executorService.schedule(() -> {
                 switchpic();
-            }, 0, seconds, TimeUnit.SECONDS);
-            running = true;
+            }, seconds, TimeUnit.SECONDS);
         }
     }
 
     private void switchpic() {
         File file = getPic();
-        BufferedImage bi;
-        try {
-            bi = ImageIO.read(file);
-            System.out.println(file.getName() + " " + bi.getWidth() + "x" + bi.getHeight());
-            debug.setText(hl.buildLabel(file.getName() + " " + bi.getWidth() + "x" + bi.getHeight()));
-            Dimension d = setD(bi.getWidth(), bi.getHeight());
-            img.setIcon(
-                    new ImageIcon(new javax.swing.ImageIcon(bi).getImage()
-                            .getScaledInstance(d.width, d.height, Image.SCALE_SMOOTH)));
-            img.setHorizontalAlignment((int) JLabel.CENTER_ALIGNMENT);
+        if (isPic(file)) {
+            System.out.println("next is pic: " + file.getName());
+            if (vlc.isVisible()) {
+                vlc.setVisible(false);
+                panel.revalidate();
+            }
 
-        } catch (IOException ex) {
-            Logger.getLogger(Slide.class
-                    .getName()).log(Level.SEVERE, null, ex);
-            debug.setText(hl.buildLabel("ERROR " + file.getName()));
+            BufferedImage bi;
+            try {
+                bi = ImageIO.read(file);
+                System.out.println(file.getName() + " " + bi.getWidth() + "x" + bi.getHeight());
+                debug.setText(hl.buildLabel(file.getName() + " " + bi.getWidth() + "x" + bi.getHeight()));
+                Dimension d = setD(bi.getWidth(), bi.getHeight());
+                img.setIcon(
+                        new ImageIcon(new javax.swing.ImageIcon(bi).getImage()
+                                .getScaledInstance(d.width, d.height, Image.SCALE_SMOOTH)));
+                img.setHorizontalAlignment((int) JLabel.CENTER_ALIGNMENT);
+
+            } catch (IOException ex) {
+                Logger.getLogger(Slide.class
+                        .getName()).log(Level.SEVERE, null, ex);
+                debug.setText(hl.buildLabel("ERROR " + file.getName()));
+            }
+            timeIt();
+        } else if (isVid(file)) {
+            switchpic();
+//            System.out.println("next is vid: " + file.getName());
+//            if (!vlc.isVisible()) {
+//                vlc.setVisible(true);
+//            }
+//            try {
+//                vlc.getMediaPlayer().setEnableKeyInputHandling(false);
+//                vlc.getMediaPlayer().setEnableMouseInputHandling(false);
+//                vlc.getMediaPlayer().setMarqueeText(file.getName());
+//                vlc.getMediaPlayer().setMarqueeSize(20);
+//                vlc.getMediaPlayer().setMarqueeColour(Color.GRAY);
+//                vlc.getMediaPlayer().setMarqueeTimeout(1000);
+//                vlc.getMediaPlayer().setMarqueePosition(libvlc_marquee_position_e.bottom_right);
+//                vlc.getMediaPlayer().setMarqueeOpacity(0.8f);
+//                vlc.getMediaPlayer().enableMarquee(true);
+//                vlc.getMediaPlayer().playMedia(file.getCanonicalPath());
+//            } catch (IOException ex) {
+//                Logger.getLogger(Slide.class.getName()).log(Level.SEVERE, null, ex);
+//                debug.setText(hl.buildLabel("ERROR " + file.getName()));
+//                System.out.println("error: " + file.getName());
+//                switchpic();
+//            }
         }
     }
 
     void exiton() {
+        vlc.release();
         executorService.shutdown();
         frame.dispose();
     }
@@ -473,6 +606,7 @@ public class Slide {
     }
 
     public void setDebug() {
+        System.out.println("vlc is "+(vlc.isVisible()?"visible":"not visible"));
         debug.setText(hl.buildLabel(""));
     }
 
@@ -486,7 +620,7 @@ public class Slide {
         for (final File fileEntry : playFolder.listFiles()) {
             if (fileEntry.isDirectory()) {
             } else {
-                System.out.println(fileEntry.getAbsolutePath());
+                System.out.println("filepath: " + fileEntry.getAbsolutePath());
                 if (playlistFiles == null) {
                     playlistFiles = new ArrayList<>();
                 }
@@ -595,7 +729,7 @@ public class Slide {
 //        }
         System.out.println("sort pic");
         if (currentPic != null) {
-            System.out.println(currentPic.getAbsolutePath());
+            System.out.println("curpicpath: " + currentPic.getAbsolutePath());
         }
         popPlsAdd();
     }
@@ -604,6 +738,7 @@ public class Slide {
     private void popPlsAdd() {
         System.out.println("pop pl:" + popPlsOpen);
         propPls.forEach(System.out::println);
+        System.out.println("end prop pl");
         if (popPlsOpen) {
             propPls.forEach(panel::remove);
             propPls = new ArrayList<>();
